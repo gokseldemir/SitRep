@@ -7,6 +7,7 @@ Find one of the reports in the following link; https://www.fnha.ca/Documents/FNH
 This project uses R Markdown to generate a word document that includes various toxic drug overdose related information, graphs etc.
 
 To produce this reports, one simply needs to 'knit' 02_report_draft_2, and the script will call other scripts and generate a word document. It is the same document in the above link.
+Therefore, it automates a demanding process which used to take up to two weeks every month. 
 
 In sum, this project;
 
