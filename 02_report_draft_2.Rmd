@@ -1,0 +1,533 @@
+---
+title: "Sitrep Revised"
+author: "Goksel"
+date: "Sys.Date"
+output: word_document
+params:
+  report_date: Sys.Date
+  current_data_month: March  
+  month_num: 3
+  current_data_year: 2021
+  oat_claimants_this_month: 200
+  oat_methadone_this_month: 63.1%
+  oat_subox_this_month: 22.6%
+  oat_kadian_this_month: '14.6'
+  oat_subox_er_this_month: 2.3%
+  nasal_dist_this_month: 100
+  inject_order_this_month: 124
+  month_start_date: '2021-01-01'
+  month_end_date: '2022-03-31'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+```
+
+```{r setup_data, include=FALSE}
+source("00_setup_data.R", local=knitr::knit_global())
+```
+
+```{r setup_function6s}
+source("standard_summary_functions.R", local=knitr::knit_global())
+```
+
+```{r}
+bcehs2 <- bcehs2 %>% filter(dateofevent_floor<=ymd(params$month_end_date))
+bccs <- bccs %>% filter(dateofdeath_floor <= ymd(params$month_end_date))
+oneyrroll <- seq(max(bcehs2$dateofevent_floor), by="-1 month", length=12)
+```
+
+## Summary
+
+### First nations Toxic Drug Poisoning Events and Deaths (`r params$current_data_month`, `r params$current_data_year`):
+
+In `r params$current_data_month`, `r params$current_data_year` there were a total of <%= fn_events_this_month %> paramedic-attended drug poisoning events reported among First Nations people.This represents a <%= fn_per_change_last_mth %> % <%= ifelse(fn_per_change_last_mth<0, "decrease", "increase") %> from the previous month and a <%= fn_per_change_same_mth %> % <%= ifelse(fn_per_change_same_mth<0, "decrease", "increase") %>  from `r params$current_data_month` of last year.
+
+First Nations people represented <%= round(fn_percent_this_month, digits =1) %> % of all toxic drug poisoning events this month.
+
+Women represented <%= percent_women_fn_events %> % of all First Nations toxic drug poisoning events; among other residents, <%= percent_women_or_events %> % of all drug poisoning events were women. 
+    
+This month we lost an additional <%= fn_deaths_this_month %> First Nations people due to toxic drug poisoning.First Nations people represented <%= fn_prop_deaths %> % of all deaths this month.
+
+Since 2016, the year in which a public health emergency was declared we have lost a total of <%= total_fn_deaths %> First Nations people to toxic drug poisoning.
+
+### FNHA's Response to the Toxic Drug Emergency 
+
+As described in the FNHA Programs and Outcomes section of this report, the FNHA has developed an expanding range of programs and initiatives to combat the toxic drug crisis. These are designed in culturally safe ways that confront the anti-Indigenous racism and systemic inequity built into Canada’s health system.
+
+Key programs include First Nations Treatment and Healing Centres, Intensive Case Management (ICM) Teams, Indigenous land-based healing services, “Not Just Naloxone” training, the development of a network of peer coordinators, hiring of harm reduction educators, dispensing opioid agonist therapy and distributing naloxone.
+
+#### Provision of Opioid Agonist Therapy (OAT)
+
+Based on prescription drug claim data of FNHA clients, `r params$oat_claimants_this_month` First Nations people were dispensed OAT in `r params$current_data_month` `r params$current_data_year`. Of these: 
+ * approximately 
+
+
+```{=html}
+<!-- -->
+```
+-   Opioid Agonist Therapy is a form of treatment for persons with an opioid use disorder where the individual is prescribed a pharmaceutical opioid (methadone, suboxone or kadian) as a substitute for the illicit drugs. A claimant in this report is a person who is registers with FNHA's Health Benefits program and makes a claim for treatment (prescription drugs, dental, vision)
+    -   This month `r params$oat_claimants_this_month` First Nations people made a claim for OAT through Plan W.
+
+-   `r params$nasal_dist_this_month` naloxone kits were distributed via the FNHA nasal naloxone program.
+-    Additionally, `r params$inject_order_this_month` injectable naloxone kits were ordered through First Nations health centres and friendship centres.
+
+```{r events_by_month, echo=FALSE}
+
+by_month_events <- counts_by_time(bcehs2, dateofevent_floor, FN_FLAG)
+
+fn_events_this_month <- by_month_events$total[by_month_events$dateofevent_floor == max(by_month_events$dateofevent_floor) & by_month_events$FN_FLAG == "1"]
+
+fn_percent_this_month_table <- bcehs2 %>%
+  filter(phn_flag_update == "Y") %>% 
+  counts_by_time(., dateofevent_floor, FN_FLAG)
+  
+fn_percent_this_month <- 100*(fn_percent_this_month_table$prop[fn_percent_this_month_table$dateofevent_floor == max(fn_percent_this_month_table$dateofevent_floor) & fn_percent_this_month_table$FN_FLAG == "1"])
+
+
+```
+
+```{r by_month_percent_chg}
+per_change <- by_month_events %>% 
+  ungroup() %>% 
+  arrange(FN_FLAG, dateofevent_floor) %>% 
+  mutate(per_change_last_mth = 100*(total-lag(total, 1))/lag(total), 
+         per_change_same_mth = 100*((total-lag(total, 12))/lag(total, 12)))
+
+fn_per_change_last_mth <- round(per_change$per_change_last_mth[per_change$dateofevent_floor == max(by_month_events$dateofevent_floor) & per_change$FN_FLAG == "1"], digits =1)
+
+fn_per_change_same_mth <- round(per_change$per_change_same_mth[per_change$dateofevent_floor == max(by_month_events$dateofevent_floor) & per_change$FN_FLAG == "1"], digits = 1)
+```
+
+```{r}
+by_month_events_fn <- by_month_events %>% 
+  filter(FN_FLAG == 1 & dateofevent_floor >= ymd(params$month_start_date))
+```
+
+```{r deaths_by_month}
+by_month_death <- counts_by_time(bccs, dateofdeath_floor, FirstNations) 
+
+by_month_death <- by_month_death
+
+by_month_deaths_fn <- by_month_death %>% 
+  filter(FirstNations == "first_nations" & dateofdeath_floor >= ymd(params$month_start_date)) %>% 
+  ungroup() %>% 
+  mutate(supp_flag = ifelse(total <11, 1, 0), 
+         rank = rank(total, ties.method = "first")
+         )
+
+n_supp <- sum(by_month_deaths_fn$supp_flag)
+un_fn_supp <- (by_month_deaths_fn$FirstNations[by_month_deaths_fn$supp_flag==1])
+
+#if only one month is suppressed (per group [FN/OR]) then need to suppress next lowest month to avoid back calculation
+
+if (n_supp == 1 & length(un_fn_supp) ==1) { 
+  
+  rank_check <- by_month_deaths_fn$rank[by_month_deaths_fn$supp_flag == 1]
+  suppressed_mths <- c(rank_check, rank_check+1)
+  
+  by_month_deaths_fn <- by_month_deaths_fn %>% 
+    mutate(suppressed_total = ifelse((rank %in% suppressed_mths & FirstNations %in% un_fn_supp), NA, suppressed_total))
+  } else {
+    by_month_deaths_fn <- by_month_deaths_fn
+  }
+
+fn_deaths_this_month <- by_month_deaths_fn$suppressed_total[by_month_deaths_fn$dateofdeath_floor == max(by_month_deaths_fn$dateofdeath_floor)]
+
+fn_prop_deaths <- round(100*by_month_deaths_fn$prop[by_month_deaths_fn$dateofdeath_floor == max(by_month_deaths_fn$dateofdeath_floor)])
+
+total_fn_deaths <- sum(by_month_death$total[year(by_month_death$dateofdeath_floor)>=2016 & by_month_death$FirstNations=="first_nations"])
+
+```
+
+```{r month_and_ha}
+by_month_ha_events <- counts_by_time(bcehs2, ha_name, dateofevent_floor, FN_FLAG)
+
+by_month_ha_events_fn <- by_month_ha_events %>% 
+  filter(FN_FLAG == 1 & dateofevent_floor >= ymd(params$month_start_date))
+```
+
+```{r plot_events_month_fn, include=T}
+
+bar_plot_time(data=by_month_events_fn, x=dateofevent_floor,y=suppressed_total, group=FN_FLAG, fill=FN_FLAG, 
+              colour_vec = "darkorange1", colour_lab = "First Nations",
+              date_breaker = "1 months", 
+              plot_titles = labs(title="Number of Paramedic Attended Drug Poisoning Events by Month", 
+                                 subtitle = paste("First Nations,", 
+                                                  format(ymd(params$month_start_date), "%b %d, %Y"),  "-",
+                                                  format(ymd(params$month_end_date), "%b %d, %Y")), 
+                                 x="Month", y="Total Number of Events")) + 
+  scale_y_continuous(expand=c(0, 50)) + 
+  theme(legend.position = "none")
+
+```
+
+### Regional Paramedic Attended Toxic Drug Poisoning Events by Month, `r format(ymd(params$month_start_date), "%B %d, %Y")` -  `r format(ymd(params$month_end_date), "%B %d, %Y")`
+
+```{r plot_ha_mth, fig.width=10, fig.height=6}
+stack_bar_time(data=by_month_ha_events_fn, 
+               x=dateofevent_floor,
+               y=suppressed_total, group=ha_name, fill=ha_name, 
+               colour_vec = c("#2C97A7", "#F04B52", "#8ACAE2", "#F57E20", "#00A14B"),
+              date_breaker = "1 months", 
+              plot_titles = labs(title="Number of Paramedic Attended Drug Poisoning Events by Month", 
+                                 subtitle = paste("First Nations,", 
+                                                  format(ymd(params$month_start_date), "%b %d, %Y"),  "-",
+                                                  format(ymd(params$month_end_date), "%b %d, %Y")), 
+                                 x="Month", y="Total Number of Events")) + 
+  scale_y_continuous(expand=c(0, 50)) + 
+  theme(legend.position = "right")
+
+```
+
+-   There were `r fn_events_this_month` paramedic attended drug poisoning events among First Nations people in `r params$current_data_month`, `r params$current_data_year`.
+-   This represented a `r fn_per_change_last_mth`% `r ifelse(fn_per_change_last_mth<0, "decrease", "increase")` from the previous month and a `r fn_per_change_same_mth`% `r ifelse(fn_per_change_last_mth<0, "decrease", "increase")` from `r params$current_data_month` in the year prior.
+-   First Nations people represented `r round(fn_percent_this_month, digits=1)`% of all drug poisoning events.
+
+### Toxic Drug Poisoning Deaths by Month, 
+`r format(ymd(params$month_start_date), "%B %d, %Y")` - 
+`r format(ymd(params$month_end_date), "%B %d, %Y")`
+
+
+
+```{r plot_monthly_deaths, warning=FALSE, fig.width=8, fig.height=6}
+
+by_month_deaths_fn <- by_month_deaths_fn %>% 
+  mutate(supp_label = ifelse(is.na(suppressed_total), "*", NA))
+
+bar_plot_time(data=by_month_deaths_fn, x=dateofdeath_floor,y=suppressed_total,
+              group=FirstNations, 
+              fill=FirstNations, 
+              colour_vec = "darkorange1", colour_lab = "First Nations",
+              date_breaker = "1 months", 
+              plot_titles = labs(title="Number of Toxic Drug Deaths by Month", 
+                                subtitle = paste("First Nations,", 
+                                format(ymd(params$month_start_date), "%b %d, %Y"),  "-", format(ymd(params$month_end_date), "%b %d, %Y")), 
+                                 x="Month", y="Total Number of Deaths")) + 
+  scale_y_continuous(expand=c(0, 5)) + 
+  theme(legend.position = "none") + 
+  geom_text(aes(label=supp_label), y=1)
+
+```
+
+```{r create_ytd_table}
+
+####PHN FILTER FOR EVENTS %!!!###############
+ytd_deaths <- bccs %>% filter(DATEOFDEATH_YEAR >=params$current_data_year) %>% 
+  counts_by_time(., ha_name, FNCF_MATCH) %>% 
+  filter(FNCF_MATCH == 1) %>% 
+  mutate(percent=round(100*prop, digits=1)) %>% 
+  select(suppressed_total, percent) %>% 
+  rename(total_deaths = suppressed_total,
+         percentage_fn_deaths = percent) %>% 
+  pivot_longer(names_to = "variable", 
+               values_to = "total", 
+               cols=total_deaths:percentage_fn_deaths) %>% 
+  arrange(variable, ha_name)
+
+bc_deaths <- bccs %>% filter(DATEOFDEATH_YEAR >=params$current_data_year) %>% 
+  counts_by_time(., FNCF_MATCH) %>% 
+  filter(FNCF_MATCH == 1) %>% 
+  mutate(percent=round(100*prop, digits=1), 
+         ha_name = "BC") %>% 
+  select(ha_name, suppressed_total, percent) %>% 
+  rename(total_deaths = suppressed_total,
+         percentage_fn_deaths = percent) %>% 
+  pivot_longer(names_to = "variable", 
+               values_to = "total", 
+               cols=total_deaths:percentage_fn_deaths) %>% 
+  arrange(variable)
+
+ytd_events <- bcehs2 %>% filter(year >=params$current_data_year) %>% 
+  counts_by_time(., ha_name, FN_FLAG) %>% 
+  filter(FN_FLAG == 1) %>% 
+  select(suppressed_total) %>% 
+  rename(total = suppressed_total) %>% 
+  mutate(variable = "Total Paramedic Attended Drug Poisoning Events")
+
+ytd_events_per <- bcehs2 %>% filter(year >=params$current_data_year & phn_flag_update == "Y") %>% 
+  counts_by_time(., ha_name, FN_FLAG) %>% 
+  filter(FN_FLAG == 1) %>% 
+  mutate(total = round(100*prop, digits =1), 
+         variable = "Percentage of all Events that were First Nations") %>% 
+  select(ha_name, total, variable)
+  
+
+bc_events <- bcehs2 %>% 
+  filter(year >=params$current_data_year) %>% 
+  counts_by_time(., FN_FLAG) %>% 
+  filter(FN_FLAG == 1) %>% 
+  mutate(ha_name = "BC", variable="Total Paramedic Attended Drug Poisoning Events") %>% 
+  select(ha_name, variable, suppressed_total) %>% 
+  rename(total = suppressed_total)
+
+bc_events_per <- bcehs2 %>% 
+  filter(year >=params$current_data_year & phn_flag_update == "Y") %>% 
+  counts_by_time(.,  FN_FLAG) %>% 
+  filter(FN_FLAG == 1) %>% 
+  mutate(total = round(100*prop, digits =1), 
+         ha_name = "BC", 
+         variable = "Percentage of all Events that were First Nations") %>% 
+  select(ha_name, total, variable)
+
+
+```
+
+```{r event_rates}
+population_file<- population_file %>% 
+  filter(FirstNations==1 & year == 2020)
+
+event_rate_ytd <- ytd_events %>% 
+  left_join(population_file, by = c("ha_name"))  %>%  
+  mutate(rate = 1000*total/Population,
+         proj_rate = rate*12/params$month_num)
+
+event_rate_bc <- bc_events %>%  left_join(population_file, by = c("ha_name"))  %>%  
+  mutate(rate = 1000*total/Population,
+         proj_rate = rate*12/params$month_num)
+
+event_rates_cl <- bind_rows(event_rate_ytd, event_rate_bc) %>% 
+  mutate(variable = "Crude Drug Poisoning Event Rate (per 1,000)") %>% 
+  select(ha_name, variable, proj_rate) %>% 
+  rename("total"="proj_rate")
+  
+```
+
+
+### Regional Event & Death Breakdown, January, 1 `r params$current_data_year` - `r format(ymd(params$month_end_date), "%B %d, %Y")`
+
+ ```{r flextable_regions}
+
+combined <- bind_rows(ytd_events, bc_events, ytd_events_per, bc_events_per, ytd_deaths, bc_deaths, event_rates_cl) %>% 
+  pivot_wider(names_from = "ha_name", 
+              values_from = "total") %>% 
+  mutate(variable = 
+           case_when(variable == "percentage_fn_deaths" ~ "Proportion of all Deaths that were First Nations",
+                     variable == "total_deaths"         ~ "Total Number of Deaths", 
+                     TRUE ~ variable))
+
+flextable(combined) %>% 
+  colformat_num(i=c(1, 4), digits = 0) %>% 
+  colformat_num(i=c(2, 3), digits = 3) %>% 
+  colformat_num(i=c(5), digits = 5) %>% 
+  theme_vanilla() %>% 
+  bg(part = "header", bg="darkorange1") %>% 
+  align(align = "right", part = "body") %>% 
+  set_header_labels("ha_name" = "Health Authority", "variable" = "") %>% 
+  autofit()
+
+```
+
+```{r age_dist}
+by_age <- counts_by_time(bcehs2, year, FN_FLAG, age_group)
+
+by_age_ytd_fn <- by_age %>% filter(FN_FLAG == 1 & year == params$current_data_year & age_group!= "Unknown") 
+```
+
+```{r age_dis_plot, fig.width=7}
+
+bar_plot_gen(by_age_ytd_fn, age_group, prop, FN_FLAG, FN_FLAG, "darkorange1", 
+             plot_titles = labs(title="Drug Poisoning Events by Age Group",
+                                subtitle = paste("First Nations,", 
+                                                  format(ymd(params$month_start_date), "%b %d, %Y"),  "-",
+                                                  format(ymd(params$month_end_date), "%b %d, %Y")), 
+                                x="Age Group", 
+                                y="Percent")) + 
+  scale_y_continuous(limits=c(0, 0.5), labels = scales::percent) + 
+  geom_text(aes(label= paste0(round(100*prop, digits=1), "%")), size=4, vjust=-0.45) +
+  theme(legend.position = "none")
+
+```
+
+More than 60% of all First Nations persons who had a paramedic attended drug poisoning event in the first `r params$month_num` months of `r params$current_data_year` were younger than 40 years of age.
+
+For provincial-level data, please see:
+
+*	[Illicit Drug Toxicity Deaths in BC (BC Coroners Service)](https://www2.gov.bc.ca/assets/gov/birth-adoption-death-marriage-and-divorce/deaths/coroners-service/statistical/illicit-drug.pdf)
+*	[Overdose in BC during COVID-19  (BCCDC)](http://www.bccdc.ca/resource-gallery/Documents/Statistics%20and%20Research/Statistics%20and%20Reports/Overdose/2021.04.16_Infographic_OD%20Dashboard.pdf)
+* [Overdose Response Indicators (BCCDC)](http://www.bccdc.ca/health-professionals/data-reports/overdose-response-indicators)
+
+```{r sexbreakdown}
+events_sex <- bcehs2 %>% filter(year == params$current_data_year) %>% 
+  counts_by_time(., FirstNations, PAT_GENDER) %>% 
+  rename(sex = PAT_GENDER) %>% 
+  mutate(metric = "Toxic Drug Events")
+
+deaths_sex <- bccs %>% filter(DATEOFDEATH_YEAR == params$current_data_year) %>% 
+  mutate(FN_FLAG = as.character(FNCF_MATCH)) %>% 
+  counts_by_time(., FirstNations, GENDER) %>% 
+  rename(sex = GENDER) %>% 
+  mutate(metric = "Toxic Drug Deaths")
+
+by_sex_combo <- bind_rows(events_sex, deaths_sex) %>% 
+  mutate(sex_corrected = ifelse(sex %in% c("F", "Female"), "F", 
+                                ifelse(sex %in% c("M", "Male"), "M", 
+                                       NA)))
+
+
+
+```
+
+```{r sex_dist, fig.width=8}
+
+sex_labels = c("other_residents" = "Other Residents", "first_nations" = "First Nations")
+
+##Create a filter that suppresses death info except in March, June, September and December (quarterly)
+metric_filter <- ifelse(params$month_num %in% c(3, 6, 9, 12), "no filter", "Toxic Drug Deaths")
+by_sex_combo %>%  filter(!is.na(sex_corrected) & metric!= metric_filter)  %>% 
+  ggplot(aes(metric, total, fill = fct_relevel(sex_corrected, "M"))) + 
+  geom_bar(stat = "identity", position = "fill") + #make bars and make them side by side
+  scale_fill_manual(values = (c("slateblue4", "lightgoldenrod1")), guide=guide_legend(reverse = T)) + coord_flip() +
+  standards +
+  facet_wrap(FirstNations  ~., labeller=labeller(FirstNations=sex_labels)) +
+  geom_text(aes(label=paste0(round(100*prop, digits = 1), "%"
+                            ,  "\n", "n=", total
+                             )), 
+            position = position_fill(vjust = 0.5), size = 4.5,
+           # colour=ifelse(subset(by_sex_supp, GENDER != "Unknown")$GENDER == "Female", "black", "grey")
+           ) + 
+  theme(legend.position = "bottom", 
+        strip.text.x = element_text(
+          size = 14, color = "black", face = "bold")) +
+  #scale_x_discrete(labels = c("First Nations", "Other Residents")) + #add labels
+  scale_y_continuous(labels = scales::percent, breaks = seq(0, 1, by = 0.5)) +
+  labs(title = "Toxic Drug Poisoning Events & Deaths", 
+       subtitle = params$current_data_year,
+       x = " ", y="Percentage")
+
+
+
+```
+
+```{r get_percent_female}
+by_sex_combo <- by_sex_combo %>% filter(!is.na(sex_corrected))
+percent_women_fn_events <- round(100*by_sex_combo$prop[by_sex_combo$metric == "Toxic Drug Events" & by_sex_combo$sex_corrected == "F" & by_sex_combo$FirstNations == "first_nations"], digits =1)
+percent_women_or_events <- round(100*by_sex_combo$prop[by_sex_combo$metric == "Toxic Drug Events" & by_sex_combo$sex_corrected == "F" & by_sex_combo$FirstNations == "other_residents"], digits =1)
+percent_women_or_deaths <- round(100*by_sex_combo$prop[by_sex_combo$metric == "Toxic Drug Deaths" & by_sex_combo$sex_corrected == "F" & by_sex_combo$FirstNations == "other_residents"], digits =1)
+percent_women_fn_deaths <- round(100*by_sex_combo$prop[by_sex_combo$metric == "Toxic Drug Deaths" & by_sex_combo$sex_corrected == "F" & by_sex_combo$FirstNations == "first_nations"], digits =1)
+
+```
+
+Women continue to represent higher proportions of First Nations toxic drug poisoning events and deaths compared to Other Residents. 
+• `r percent_women_fn_events` % of toxic drug poisoning events among First Nations involved women, this compares to `r percent_women_or_events`% among other residents of BC.
+•	`r percent_women_fn_deaths`% of toxic drug poisoning deaths among First Nations involved women, this compares to `r percent_women_or_deaths`% among other residents of BC.
+
+
+
+```{r run_mapping_code, include=FALSE}
+source("01_sitrep_rolling_map.R", local=knitr::knit_global())
+```
+
+
+```{r}
+fn_events <- bcehs2 %>% 
+  filter(FN_FLAG == 1 & dateofevent_floor%in% oneyrroll) %>% 
+  group_by(DERIVED_LHA) %>% 
+  summarise(total_ods = n()) %>%  
+  mutate(LOCAL_HLTH_AREA_CODE=as.character(DERIVED_LHA))
+```
+
+
+```{r}
+fn_rates_roll <-  fn_events %>% rename(lha_id_2018 = DERIVED_LHA) %>% 
+  left_join(fn_lha_pop_b, by = "lha_id_2018") %>% 
+  mutate(rate_per_1000_roll = round(1000*total_ods/population, digits=1))
+
+```
+```{r, check_rate_dis, include=FALSE}
+ggplot(fn_rates_roll, aes(rate_per_1000_roll)) + 
+  geom_histogram()
+```
+install.package("pander")
+
+```{r create_shape_file_rolling_map}
+od_shape_roll_rates <- health_lha() %>% 
+  left_join(fn_rates_roll, by="LOCAL_HLTH_AREA_CODE") %>% 
+  mutate(supp_rate_roll_per_1000 = ifelse(is.na(total_ods), 0, 
+                                          ifelse(total_ods <11, NA, 
+                                                 rate_per_1000_roll)), 
+         rank = ifelse(is.na(supp_rate_roll_per_1000), NA, 
+                       rank(desc(supp_rate_roll_per_1000))), 
+         map_label = ifelse(rank<7, LOCAL_HLTH_AREA_NAME, NA), 
+         supp_n = ifelse(is.na(total_ods), 0, 
+                         ifelse(total_ods <11, NA, 
+                                total_ods)))
+
+```
+
+
+```{r map_labels}
+label_top_lha <- od_shape_roll_rates$LOCAL_HLTH_AREA_NAME[od_shape_roll_rates$rate_per_1000_roll>=30]
+label_top_lha_b <- od_shape_roll_rates$LOCAL_HLTH_AREA_NAME[od_shape_roll_rates$total_ods>=110]
+
+od_shape_roll_rates <-od_shape_roll_rates %>% 
+  mutate(map_label_inset = ifelse((LOCAL_HLTH_AREA_NAME %in% label_top_lha | LOCAL_HLTH_AREA_NAME %in% label_top_lha_b), LOCAL_HLTH_AREA_NAME, NA),
+         map_label_BC = ifelse(HLTH_AUTHORITY_CODE %in% c("2","3"), NA, map_label_inset))
+```
+
+
+```{r top_lha_rates}
+fn_rates_ranks <- list(
+ rates_ranked = od_shape_roll_rates %>% arrange(desc(supp_rate_roll_per_1000)) %>% pull(supp_rate_roll_per_1000),
+  lha_names_rates = od_shape_roll_rates %>% arrange(desc(supp_rate_roll_per_1000)) %>% pull(LOCAL_HLTH_AREA_NAME),
+  n_ranked = od_shape_roll_rates %>% arrange(desc(supp_n)) %>% pull(supp_n), 
+  lha_names_n = od_shape_roll_rates %>% arrange(desc(supp_n)) %>% pull(LOCAL_HLTH_AREA_NAME)
+)
+```
+
+
+
+## Paramedic-Attended Toxic Drug Poisoning Events by Local Health Area (First Nations, rate per 1,000 people)
+
+The local health areas with the highest drug poisoning event rates (indicated on the map below) in the most recent 1 year ( `r paste(format(min(oneyrroll), "%B %d, %Y"), "-", format(max(oneyrroll), "%B %d, %Y"))`  were: `r fn_rates_ranks[["lha_names_rates"]][1]` (`r fn_rates_ranks[["rates_ranked"]][1]` per 1,000), `r fn_rates_ranks[["lha_names_rates"]][2]` (`r fn_rates_ranks[["rates_ranked"]][2]`per 1,000), `r fn_rates_ranks[["lha_names_rates"]][3]` (`r fn_rates_ranks[["rates_ranked"]][3]`per 1,000), `r fn_rates_ranks[["lha_names_rates"]][4]` (`r fn_rates_ranks[["rates_ranked"]][4]`per 1,000),`r fn_rates_ranks[["lha_names_rates"]][5]` (`r fn_rates_ranks[["rates_ranked"]][5]` per 1,000) and `r fn_rates_ranks[["lha_names_rates"]][6]` (`r fn_rates_ranks[["rates_ranked"]][6]` per 1,000). 
+
+The local health areas with the highest drug poisoning counts (not displayed on map) were `r fn_rates_ranks[["lha_names_n"]][1]`, `r fn_rates_ranks[["lha_names_n"]][2]`, `r fn_rates_ranks[["lha_names_n"]][3]`, `r fn_rates_ranks[["lha_names_n"]][4]`, `r fn_rates_ranks[["lha_names_n"]][5]` and `r fn_rates_ranks[["lha_names_n"]][6]`.
+
+```{r print_bc_map, fig.width=9, fig.height=7}
+tm_shape(od_shape_roll_rates) + 
+  tm_polygons("supp_rate_roll_per_1000", 
+              style = "fixed", 
+              breaks = c(0, 0.1, 10.1, 20.1, 30.1, 40.1, 50.1, 200),
+              labels = c("No events Reported", "<10", "10.1-20.0", "20.1-30.0", "30.1-40.0", "40.1-50.0", ">50.0"),
+              textNA = "Suppressed(n<11)", 
+              title= "Rate per 1,000, Past 1 year rolling") +
+  tm_layout(legend.text.size = 0.8, 
+            legend.outside=T, 
+            main.title =  "Drug Poisoning Event Rates per 1,000, Rolling 1 year", 
+            title = paste(format(min(oneyrroll), "%B %d, %Y"), "-", format(max(oneyrroll), "%B %d, %Y"))) + 
+  tm_text("map_label_BC", size=0.8)
+```
+
+
+
+
+```{r print_inset_map, fig.width=7}
+vch_fraser <- od_shape_roll_rates %>% 
+  filter(HLTH_SERVICE_DLVR_AREA_CODE %in% c(32, 31, 23) | lha_id_2018 %in% c(212, 213))
+
+tm_shape(vch_fraser) + 
+  tm_polygons("supp_rate_roll_per_1000", 
+              style = "fixed", 
+              breaks = c(0, 0.1, 10.1, 20.1, 30.1, 40.1, 50.1, 200),
+              labels = c("No events reported","<10", "10.1-20.0", "20.1-30.0", "30.1-40.0", "40.1-50.0", ">50.0"),
+              textNA = "Suppressed(n<11)", 
+              title = "Rate per 1,000, 2020") + 
+  tm_text("map_label_inset", col="black", size="AREA") + 
+  tm_layout(legend.text.size = 1, 
+            #legend.position = c("right", "top"),
+            legend.outside=T)
+```
+
+*Note LHAs with the highest rates or highest number of events have been labelled in the map above.
+
+
+```{r cache = F}
+##This function runs doc twice so that summary gets updated. 
+require(knitr)
+knit_hooks$set(document = function(x){
+  x1 = paste(x, collapse = '\n')
+  paste(capture.output(brew::brew(text = x1)), collapse = '\n')
+})
+```
+
+

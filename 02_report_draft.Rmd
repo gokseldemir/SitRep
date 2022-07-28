@@ -1,0 +1,133 @@
+---
+title: "Sitrep"
+author: "Goksel"
+date: "5/31/2021"
+output: word_document
+params:
+  report_date: Sys.Date
+  current_data_month: "May"
+  current_data_year: 2021
+  oat_claimants_this_month: 200
+  nasal_dist_this_month: 100
+  month_start_date: 2020-01-01
+  month_end_date: 2021-05-31
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r setup_data, include=FALSE}
+source("00_setup_data.R", local=knitr::knit_global())
+```
+
+```{r setup_function6s}
+source("standard_summary_functions.R", local=knitr::knit_global())
+```
+
+\#\#Summary
+
+In `r params$current_data_month`:\
+\* There were a total of <%= fn_events_this_month %> events were recorded among First Nations people, a <%= fn_per_change_last_mth %> `r ifelse(fn_per_change_last_mth<0, "decrease", "increase")` from the previous month.\
+\* First Nations people represented <%= fn_percent_this_month %> % of all events this month.\
+\* <%= fn_deaths_this_month %> deaths were recorded among First Nations people. First Nations people represented <%= fn_prop_deaths %> of all deaths this month.\
+\* There were `r params$oat_claimants_this_month` unique claimants for OAT.\
+\*`r params$nasal_dist_this_month` naloxone kits were distributed.
+
+```{r events_by_month, echo=FALSE}
+by_month_events <- counts_by_time(bcehs2, dateofevent_floor, FN_FLAG)
+
+fn_events_this_month <- by_month_events$total[by_month_events$dateofevent_floor == max(by_month_events$dateofevent_floor) & by_month_events$FN_FLAG == "1"]
+
+fn_percent_this_month <- 100*(by_month_events$prop[by_month_events$dateofevent_floor == max(by_month_events$dateofevent_floor) & by_month_events$FN_FLAG == "1"])
+
+
+```
+
+```{r by_month_percent_chg}
+per_change <- by_month_events %>% 
+  ungroup() %>% 
+  arrange(FN_FLAG, dateofevent_floor) %>% 
+  mutate(per_change_last_mth = 100*(total-lag(total, 1))/lag(total), 
+         per_change_same_mth = 100*((total-lag(total, 12))/lag(total, 12)))
+
+fn_per_change_last_mth <- round(per_change$per_change_last_mth[per_change$dateofevent_floor == params$month_end_date & per_change$FN_FLAG == "1"], digits =1)
+
+fn_per_change_same_mth <- round(per_change$per_change_same_mth[per_change$dateofevent_floor == params$month_end_date & per_change$FN_FLAG == "1"], digits = 1)
+```
+
+```{r}
+by_month_events_fn <- by_month_events %>% 
+  filter(FN_FLAG == 1 & dateofevent_floor >= ymd(params$month_start_date))
+```
+
+```{r deaths_by_month}
+by_month_death <- counts_by_time(bccs, dateofdeath_floor, FNCF_MATCH)
+
+by_month_deaths_fn <- by_month_death %>% 
+  filter(FNCF_MATCH == 1 & dateofdeath_floor >= ymd(params$month_start_date))
+
+fn_deaths_this_month <- by_month_deaths_fn$total[by_month_deaths_fn$dateofdeath_floor == max(by_month_deaths_fn$dateofdeath_floor)]
+```
+
+```{r month_and_ha}
+by_month_ha_events <- counts_by_time(bcehs2, ha_name, dateofevent_floor, FN_FLAG)
+
+by_month_ha_events_fn <- by_month_ha_events %>% 
+  filter(FN_FLAG == 1 & dateofevent_floor >= ymd(params$month_start_date))
+```
+
+```{r plot_events_month_fn, include=FALSE}
+
+bar_plot_time(data=by_month_events_fn, x=dateofevent_floor,y=suppressed_total, group=FN_FLAG, fill=FN_FLAG, 
+              colour_vec = "darkorange1", colour_lab = "First Nations",
+              date_breaker = "1 months", 
+              plot_titles = labs(title="Number of Paramedic Attended Drug Poisoning Events by Month", 
+                                 subtitle = paste("First Nations,", 
+                                                  format(ymd(params$month_start_date), "%b %d, %Y"),  "-",
+                                                  format(ymd(params$month_end_date), "%b %d, %Y")), 
+                                 x="Month", y="Total Number of Events")) + 
+  scale_y_continuous(expand=c(0, 50)) + 
+  theme(legend.position = "none")
+
+```
+```{r plot_monthly_deaths}
+bar_plot_time(data=by_month_deaths_fn, x=dateofdeath_floor,y=suppressed_total, group=FNCF_MATCH, fill=FNCF_MATCH, 
+              colour_vec = "darkorange1", colour_lab = "First Nations",
+              date_breaker = "1 months", 
+              plot_titles = labs(title="Number of Toxic Drug Deaths by Month", 
+                                 subtitle = paste("First Nations,", 
+                                                  format(ymd(params$month_start_date), "%b %d, %Y"),  "-",
+                                                  format(ymd(params$month_end_date), "%b %d, %Y")), 
+                                 x="Month", y="Total Number of Deaths")) + 
+  scale_y_continuous(expand=c(0, 5)) + 
+  theme(legend.position = "none")
+```
+
+```{r plot_ha_mth, fig.width=11, fig.height=7}
+stack_bar_time(data=by_month_ha_events_fn, 
+               x=dateofevent_floor,
+               y=suppressed_total, group=ha_name, fill=ha_name, 
+               colour_vec = c("#2C97A7", "#F04B52", "#8ACAE2", "#F57E20", "#00A14B"), 
+              date_breaker = "1 months", 
+              plot_titles = labs(title="Number of Paramedic Attended Drug Poisoning Events by Month", 
+                                 subtitle = paste("First Nations,", 
+                                                  format(ymd(params$month_start_date), "%b %d, %Y"),  "-",
+                                                  format(ymd(params$month_end_date), "%b %d, %Y")), 
+                                 x="Month", y="Total Number of Events")) + 
+  scale_y_continuous(expand=c(0, 50)) + 
+  theme(legend.position = "none")
+```
+
+-   There were `r fn_events_this_month` paramedic attended drug poisoning events among First Nations people in `r params$current_data_month`, `r params$current_data_year`.
+-   This represented a `r fn_per_change_last_mth`% `r ifelse(fn_per_change_last_mth<0, "decrease", "increase")` from the previous month and a `r fn_per_change_same_mth`% `r ifelse(fn_per_change_last_mth<0, "decrease", "increase")` from `r params$current_data_month` in the year prior.
+-   First Nations people represented `r fn_percent_this_month`% of all drug poisoning events.
+
+```{r cache = F}
+##This function runs doc twice so that summary gets updated. 
+require(knitr)
+knit_hooks$set(document = function(x){
+  x1 = paste(x, collapse = '\n')
+  paste(capture.output(brew::brew(text = x1)), collapse = '\n')
+})
+```
